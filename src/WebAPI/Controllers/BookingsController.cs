@@ -37,9 +37,9 @@ public class BookingsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int serviceId, int id)
     {
-        if (id <= 0)
+        if (id <= 0 || serviceId <= 0)
         {
-            return BadRequest("Incorrect Booking ID!");
+            return BadRequest("Incorrect ID");
         }
 
         var service = await _servicesRepository.GetByIdAsync(serviceId);
@@ -60,6 +60,11 @@ public class BookingsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromRoute] int serviceId, Booking booking)
     {
+        if (serviceId <= 0)
+        {
+            return BadRequest("Incorrect ID");
+        }
+
         var additionalService = await _servicesRepository.GetByIdAsync(serviceId);
         if (additionalService == null)
         {
@@ -78,6 +83,11 @@ public class BookingsController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, Booking booking)
     {
+        if (id <= 0 || booking.Id != id)
+        {
+            return BadRequest("Incorrect ID");
+        }
+
         var existingService = await _servicesRepository.GetByIdAsync(id);
         if (existingService == null)
         {
@@ -103,13 +113,25 @@ public class BookingsController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
+        if (id <= 0)
+        {
+            return BadRequest("Incorrect ID");
+        }
+
         var existingService = await _servicesRepository.GetByIdAsync(id);
         if (existingService == null)
         {
             return NotFound();
         }
 
-        await _servicesRepository.DeleteAsync(id);
+        var booking = existingService.Bookings.FirstOrDefault(b => b.Id == id);
+        if (booking == null)
+        {
+            return NotFound();
+        }
+
+        existingService.Bookings.Remove(booking);
+        await _servicesRepository.UpdateAsync(existingService.Id, existingService);
 
         return NoContent();
     }
