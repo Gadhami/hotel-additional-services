@@ -35,9 +35,20 @@ public class BookingsController : ControllerBase
     }
 
     [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> GetById(int serviceId, int id)
     {
-        var booking = await _servicesRepository.GetByIdAsync(id);
+        if (id <= 0)
+        {
+            return BadRequest("Incorrect Booking ID!");
+        }
+
+        var service = await _servicesRepository.GetByIdAsync(serviceId);
+        if (service == null)
+        {
+            return NotFound();
+        }
+
+        var booking = service.Bookings.FirstOrDefault(b => b.Id == id);
         if (booking == null)
         {
             return NotFound();
