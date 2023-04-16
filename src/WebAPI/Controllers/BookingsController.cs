@@ -1,5 +1,6 @@
 ﻿using HotelServices.Domain.Entities;
 using HotelServices.Domain.Interfaces;
+using HotelServices.WebAPI.Filters;
 
 using Microsoft.AspNetCore.Mvc;
 
@@ -58,6 +59,7 @@ public class BookingsController : ControllerBase
     }
 
     [HttpPost]
+    [ValidateModel]
     public async Task<IActionResult> Create([FromRoute] int serviceId, Booking booking)
     {
         if (serviceId <= 0)
@@ -76,8 +78,10 @@ public class BookingsController : ControllerBase
         additionalService.Bookings.Add(booking);
         await _servicesRepository.UpdateAsync(serviceId, additionalService);
 
-        return CreatedAtAction(nameof(GetById), new { serviceId = serviceId, id = booking.Id }, booking);
+        // Retrieve the newly created booking from the repository to get its _id property
+        var createdBooking = additionalService.Bookings.Last();
 
+        return CreatedAtAction(nameof(GetById), new { serviceId = serviceId, id = booking.Id }, booking);
     }
 
     [HttpPut("{id:int}")]

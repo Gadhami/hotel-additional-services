@@ -1,5 +1,6 @@
 ﻿using HotelServices.Domain.Entities;
 using HotelServices.Domain.Interfaces;
+using HotelServices.WebAPI.Filters;
 
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,6 +37,7 @@ public class AdditionalServicesController : ControllerBase
     }
 
     [HttpPost]
+    [ValidateModel]
     public async Task<IActionResult> Create(AdditionalService additionalService)
     {
         await _repository.CreateAsync(additionalService);
