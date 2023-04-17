@@ -236,3 +236,5 @@ _Pvt_Extensions
 /HotelServices.ndproj
 /.mfractor
 src/WebAPI/ClientApp/package-lock.json
+
+**/uploads/
