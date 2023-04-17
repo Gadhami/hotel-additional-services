@@ -4,3 +4,4 @@
 20:30-20:45		Started adding tests
 20:45-21:45		AdditionalServicesController Tests done.
 21:45-0:45		Made progress with BookingsControllerTests Tests.
+8:50-9:00       Published git repo containing most of the requirements and their respective tests
