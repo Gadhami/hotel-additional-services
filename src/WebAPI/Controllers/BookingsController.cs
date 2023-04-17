@@ -1,26 +1,33 @@
-﻿using HotelServices.Domain.Entities;
+﻿using AutoMapper;
+
+using HotelServices.Domain.Entities;
+using HotelServices.Domain.Entities.DTO;
 using HotelServices.Domain.Interfaces;
 using HotelServices.WebAPI.Filters;
 
 using Microsoft.AspNetCore.Mvc;
 
+using MongoDB.Driver;
+
 namespace HotelServices.WebAPI.Controllers;
 
 [ApiController]
-[Route("services/{serviceId:int}/[controller]")]
+[Route("services/{serviceId}/[controller]")]
 public class BookingsController : ControllerBase
 {
     private readonly IRepository<AdditionalService> _servicesRepository;
+    private readonly IMapper _mapper;
 
-    public BookingsController(IRepository<AdditionalService> servicesRepository)
+    public BookingsController(IRepository<AdditionalService> servicesRepository, IMapper mapper)
     {
         _servicesRepository = servicesRepository;
+        _mapper = mapper;
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromRoute] int serviceId)
+    public async Task<IActionResult> GetAll([FromRoute] string serviceId)
     {
-        if (serviceId <=  0)
+        if (string.IsNullOrWhiteSpace(serviceId))
         {
             return BadRequest("Incorrect Service ID!");
         }
@@ -35,10 +42,10 @@ public class BookingsController : ControllerBase
         return Ok(service.Bookings);
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int serviceId, int id)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string serviceId, string id)
     {
-        if (id <= 0 || serviceId <= 0)
+        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(serviceId))
         {
             return BadRequest("Incorrect ID");
         }
@@ -60,9 +67,9 @@ public class BookingsController : ControllerBase
 
     [HttpPost]
     [ValidateModel]
-    public async Task<IActionResult> Create([FromRoute] int serviceId, Booking booking)
+    public async Task<IActionResult> Create([FromRoute] string serviceId, BookingDTO booking)
     {
-        if (serviceId <= 0)
+        if (string.IsNullOrWhiteSpace(serviceId))
         {
             return BadRequest("Incorrect ID");
         }
@@ -75,19 +82,21 @@ public class BookingsController : ControllerBase
 
         // TODO: Make sure booking time *is* available!
 
-        additionalService.Bookings.Add(booking);
+        var dbBooking = _mapper.Map<Booking>(booking);
+
+        additionalService.Bookings.Add(dbBooking);
         await _servicesRepository.UpdateAsync(serviceId, additionalService);
 
         // Retrieve the newly created booking from the repository to get its _id property
         var createdBooking = additionalService.Bookings.Last();
 
-        return CreatedAtAction(nameof(GetById), new { serviceId = serviceId, id = booking.Id }, booking);
+        return CreatedAtAction(nameof(GetById), new { serviceId = serviceId, id = createdBooking.Id }, createdBooking);
     }
 
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, Booking booking)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(string id, Booking booking)
     {
-        if (id <= 0 || booking.Id != id)
+        if (string.IsNullOrWhiteSpace(id) || booking.Id != id)
         {
             return BadRequest("Incorrect ID");
         }
@@ -107,17 +116,17 @@ public class BookingsController : ControllerBase
         // TODO: Make sure booking time *is* available!
 
         existingBooking.Start = booking.Start;
-        existingBooking.End   = booking.End;
+        existingBooking.End = booking.End;
 
         await _servicesRepository.UpdateAsync(existingService.Id, existingService);
 
         return NoContent();
     }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id)
     {
-        if (id <= 0)
+        if (string.IsNullOrWhiteSpace(id))
         {
             return BadRequest("Incorrect ID");
         }

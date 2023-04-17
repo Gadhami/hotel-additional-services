@@ -1,8 +1,10 @@
-﻿namespace HotelServices.Domain.Entities;
+﻿using HotelServices.Domain.Interfaces;
 
-public class Image
+namespace HotelServices.Domain.Entities;
+
+public class Image : IEntity
 {
-    public int    Id   { get; set; }
+    public string Id   { get; set; } = null!;
     public string Name { get; set; } = null!;
     public string URL  { get; set; } = null!;
 }

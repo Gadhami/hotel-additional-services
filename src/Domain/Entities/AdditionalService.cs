@@ -1,9 +1,11 @@
-﻿namespace HotelServices.Domain.Entities;
+﻿using HotelServices.Domain.Interfaces;
 
-public class AdditionalService
+namespace HotelServices.Domain.Entities;
+
+public class AdditionalService : IEntity
 {
-    public int Id { get; set; }
-    public string Name { get; set; }
+    public string Id { get; set; } = null!;
+    public string Name { get; set; } = null!;
     public string Description { get; set; }
     public decimal Price { get; set; }
     public ICollection<Booking> Bookings { get; set; }

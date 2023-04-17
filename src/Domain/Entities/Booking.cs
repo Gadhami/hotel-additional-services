@@ -1,8 +1,10 @@
-﻿namespace HotelServices.Domain.Entities;
+﻿using HotelServices.Domain.Interfaces;
 
-public class Booking
+namespace HotelServices.Domain.Entities;
+
+public class Booking : IEntity
 {
-    public int      Id    { get; set; }
+    public string   Id    { get; set; } = null!;
     public DateTime Start { get; set; } = DateTime.UtcNow.AddHours(1);
     public DateTime End   { get; set; } = DateTime.UtcNow.AddHours(2);
 }

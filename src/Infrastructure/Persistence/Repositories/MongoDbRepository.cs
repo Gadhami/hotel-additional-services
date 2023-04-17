@@ -1,34 +1,27 @@
-﻿using System.Linq.Expressions;
-using HotelServices.Domain.Interfaces;
+﻿using System.Collections;
+using System.Linq.Expressions;
 
-using HotelServices.Infrastructure.Persistence.Models;
+using HotelServices.Domain.Interfaces;
+using HotelServices.Infrastructure.Persistence.Configuration;
 
 using Microsoft.Extensions.Options;
+
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace HotelServices.Infrastructure.Persistence.Repositories;
 
-public class MongoDbRepository<T> : IRepository<T>, IDisposable where T : class
+public class MongoDbRepository<T> : IRepository<T>, IDisposable where T : class, IEntity
 {
     private readonly IMongoClient _client;
     private readonly IMongoCollection<T> _collection;
-    private readonly Expression<Func<T, int>> _idExpression;
     private bool _disposed = false;
 
     public MongoDbRepository(IMongoClient mongoClient, IOptions<MongoDbSettings> options)
     {
-        var database  = mongoClient.GetDatabase(options.Value.DatabaseName);
-        _client       = mongoClient;
-        _collection   = database.GetCollection<T>(typeof(T).Name + "s");
-
-        var idProperty = typeof(T).GetProperty("Id");
-        if (idProperty == null || idProperty.PropertyType != typeof(int))
-        {
-            throw new ArgumentException($"Type {typeof(T).FullName} must have an 'Id' property of type 'int'.");
-        }
-
-        var param     = Expression.Parameter(typeof(T), "x");
-        _idExpression = Expression.Lambda<Func<T, int>>(Expression.Property(param, idProperty), param);
+        var database = mongoClient.GetDatabase(options.Value.DatabaseName);
+        _client      = mongoClient;
+        _collection  = database.GetCollection<T>(typeof(T).Name + "s");
     }
 
     public async Task<IEnumerable<T>> GetAllAsync()
@@ -48,9 +41,9 @@ public class MongoDbRepository<T> : IRepository<T>, IDisposable where T : class
         return await entities.ToListAsync();
     }
 
-    public async Task<T> GetByIdAsync(int id)
+    public async Task<T> GetByIdAsync(string id)
     {
-        var filter = Builders<T>.Filter.Eq(_idExpression, id);
+        var filter = Builders<T>.Filter.Eq(x => x.Id, id);
         var entity = await _collection.FindAsync(filter);
 
         return await entity.FirstOrDefaultAsync();
@@ -58,20 +51,58 @@ public class MongoDbRepository<T> : IRepository<T>, IDisposable where T : class
 
     public async Task CreateAsync(T entity)
     {
+        if (string.IsNullOrEmpty(entity.Id))
+        {
+            entity.Id = ObjectId.GenerateNewId().ToString();
+        }
+
+        // check for child entities
+        foreach (var property in typeof(T).GetProperties())
+        {
+            var type = property.PropertyType;
+
+            // check if the property is a collection of child entities
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ICollection<>))
+            {
+                var elementType   = type.GetGenericArguments()[0];
+                var childEntities = (IEnumerable)property.GetValue(entity);
+
+                foreach (var childEntity in childEntities)
+                {
+                    var childEntityType = childEntity.GetType();
+
+                    if (childEntityType.GetInterfaces().Contains(typeof(IEntity)))
+                    {
+                        var childEntityId = (string)childEntityType.GetProperty("Id").GetValue(childEntity);
+
+                        if (string.IsNullOrEmpty(childEntityId))
+                        {
+                            childEntityType.GetProperty("Id").SetValue(childEntity, ObjectId.GenerateNewId().ToString());
+                        }
+                    }
+                }
+            }
+        }
+
         await _collection.InsertOneAsync(entity);
     }
 
-    public async Task<bool> UpdateAsync(int id, T entity)
+    public async Task<bool> UpdateAsync(string id, T entity)
     {
-        var filter = Builders<T>.Filter.Eq(_idExpression, id);
+        if (string.IsNullOrEmpty(entity.Id))
+        {
+            entity.Id = ObjectId.GenerateNewId().ToString();
+        }
+
+        var filter = Builders<T>.Filter.Eq(x => x.Id, id);
         var result = await _collection.ReplaceOneAsync(filter, entity);
 
         return result.ModifiedCount > 0;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(string id)
     {
-        var filter = Builders<T>.Filter.Eq(_idExpression, id);
+        var filter = Builders<T>.Filter.Eq(x => x.Id, id);
         var result = await _collection.DeleteOneAsync(filter);
 
         return result.DeletedCount > 0;

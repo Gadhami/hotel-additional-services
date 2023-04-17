@@ -1,7 +1,7 @@
 ﻿using HotelServices.Domain.Entities;
 using HotelServices.Domain.Interfaces;
 
-namespace Infrastructure.Persistence.Repositories;
+namespace HotelServices.Infrastructure.Persistence.Repositories;
 
 public class UnitOfWork : IUnitOfWork
 {

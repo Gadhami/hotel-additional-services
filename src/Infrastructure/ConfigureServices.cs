@@ -1,11 +1,8 @@
 ﻿using HotelServices.Domain.Entities;
 using HotelServices.Domain.Interfaces;
-
-using HotelServices.Infrastructure.Persistence.Models;
+using HotelServices.Infrastructure.Persistence.Configuration;
 using HotelServices.Infrastructure.Persistence.Repositories;
 using HotelServices.Infrastructure.Persistence.Services;
-
-using Infrastructure.Persistence.Repositories;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -29,6 +26,9 @@ public static class ConfigureServices
 
     private static void ConfigureDB(this IServiceCollection services, IConfiguration configuration)
     {
+        // Configure the mapping for AdditionalService
+        //ConfigureMongoDbId();
+
         var mongoDbSettings = configuration.GetSection("MongoDbSettings");
         services.Configure<MongoDbSettings>(options =>
         {
@@ -49,45 +49,53 @@ public static class ConfigureServices
 
             return client.GetDatabase(settings.DatabaseName);
         });
-
-        // Configure the mapping for AdditionalService
-        ConfigureMongoDbId();
     }
 
     private static void ConfigureMongoDbId()
     {
         BsonClassMap.RegisterClassMap<AdditionalService>(cm =>
         {
-            cm.AutoMap();
-            cm.MapIdMember(c => c.Id)
-              .SetIdGenerator(new Int32IdGenerator());
-            //cm.MapIdProperty(x => x.Id)
-            //    .SetElementName("_id")
-            //    .SetIdGenerator(new Int32IdGenerator());
-            //    .SetSerializer(new Int32Serializer(BsonType.Int32));
+            cm.MapIdProperty(c => c.Id)
+              .SetSerializer(new Int32Serializer(BsonType.Int32));
+            cm.MapProperty(c => c.Name);
+            cm.MapProperty(c => c.Description);
+            cm.MapProperty(c => c.Price);
+            cm.MapProperty(c => c.Bookings);
+            cm.MapProperty(c => c.Images);
+
+            //cm.AutoMap();
+            //cm.MapIdProperty(c => c.Id)
+            //  .SetElementName("_id");
+            // cm.MapIdMember(c => c.Id);
+            //.SetIdGenerator(new Int32IdGenerator())
+            // .SetSerializer(new Int32Serializer(BsonType.Int32));
         });
 
-        BsonClassMap.RegisterClassMap<Booking>(cm =>
-        {
-            cm.AutoMap();
-            cm.MapIdMember(c => c.Id)
-              .SetIdGenerator(new Int32IdGenerator());
-            //cm.MapIdProperty(x => x.Id)
-            //    .SetElementName("_id")
-            //    .SetIdGenerator(new Int32IdGenerator())
-            //    .SetSerializer(new Int32Serializer(BsonType.Int32));
-        });
+        //BsonClassMap.RegisterClassMap<Booking>(cm =>
+        //{
+        //    cm.AutoMap();
+        //    cm.MapIdMember(c => c.Id)
+        //      .SetIdGenerator(new Int32IdGenerator())
+        //      .SetSerializer(new Int32Serializer(BsonType.Int32));
+        //});
 
-        BsonClassMap.RegisterClassMap<Image>(cm =>
-        {
-            cm.AutoMap();
-            cm.MapIdMember(c => c.Id)
-              .SetIdGenerator(new Int32IdGenerator());
-            //cm.MapIdProperty(x => x.Id)
-            //    .SetElementName("_id")
-            //    .SetIdGenerator(new Int32IdGenerator())
-            //    .SetSerializer(new Int32Serializer(BsonType.Int32));
-        });
+        //BsonClassMap.RegisterClassMap<Booking>(cm =>
+        //{
+        //    cm.AutoMap();
+        //    cm.MapIdProperty(c => c.Id)
+        //      .SetElementName("_id");
+        //      //.SetIdGenerator(new Int32IdGenerator())
+        //      // .SetSerializer(new Int32Serializer(BsonType.Int32));
+        //});
+
+        //BsonClassMap.RegisterClassMap<Image>(cm =>
+        //{
+        //    cm.AutoMap();
+        //    cm.MapIdMember(c => c.Id)
+        //      .SetElementName("_id");
+        //      //.SetIdGenerator(new Int32IdGenerator())
+        //      // .SetSerializer(new Int32Serializer(BsonType.Int32));
+        //});
     }
 
     private static void SetupRepositoryDI(this IServiceCollection services)

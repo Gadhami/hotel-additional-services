@@ -1,4 +1,4 @@
-﻿namespace HotelServices.Infrastructure.Persistence.Models;
+﻿namespace HotelServices.Infrastructure.Persistence.Configuration;
 
 public class MongoDbSettings
 {

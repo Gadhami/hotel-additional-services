@@ -4,7 +4,7 @@ using MongoDB.Driver.Linq;
 
 namespace HotelServices.WebAPI.IntegrationTests.Services;
 
-public class InMemoryRepository<T> : IRepository<T> where T : class
+public class InMemoryRepository<T> : IRepository<T> where T : class, IEntity
 {
     private readonly List<T> _entities;
 
@@ -29,7 +29,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
         return Task.FromResult<IEnumerable<T>>(entities);
     }
 
-    public Task<T> GetByIdAsync(int id)
+    public Task<T> GetByIdAsync(string id)
     {
         var entity = _entities.FirstOrDefault(e => GetId(e) == id);
         return Task.FromResult(entity);
@@ -41,7 +41,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
         await Task.CompletedTask;
     }
 
-    public async Task<bool> UpdateAsync(int id, T entity)
+    public async Task<bool> UpdateAsync(string id, T entity)
     {
         var existingEntity = _entities.FirstOrDefault(e => GetId(e) == id);
         if (existingEntity == null)
@@ -54,7 +54,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
         return true;
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(string id)
     {
         var existingEntity = _entities.FirstOrDefault(e => GetId(e) == id);
         if (existingEntity == null)
@@ -71,7 +71,7 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
         // no-op
     }
 
-    private static int GetId(T entity)
+    private static string GetId(T entity)
     {
         var idProperty = typeof(T).GetProperty("Id");
         if (idProperty == null)
@@ -85,6 +85,6 @@ public class InMemoryRepository<T> : IRepository<T> where T : class
             throw new InvalidOperationException($"Entity of type {typeof(T).FullName} has null Id.");
         }
 
-        return (int)id;
+        return (string)id;
     }
 }

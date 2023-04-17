@@ -1,7 +1,9 @@
-﻿using HotelServices.Domain.Entities;
+﻿using AutoMapper;
+
+using HotelServices.Domain.Entities;
+using HotelServices.Domain.Entities.DTO;
 using HotelServices.Domain.Interfaces;
 using HotelServices.WebAPI.Filters;
-
 using Microsoft.AspNetCore.Mvc;
 
 namespace HotelServices.WebAPI.Controllers;
@@ -11,10 +13,12 @@ namespace HotelServices.WebAPI.Controllers;
 public class AdditionalServicesController : ControllerBase
 {
     private readonly IRepository<AdditionalService> _repository;
+    private readonly IMapper _mapper;
 
-    public AdditionalServicesController(IRepository<AdditionalService> repository)
+    public AdditionalServicesController(IRepository<AdditionalService> repository, IMapper mapper)
     {
         _repository = repository;
+        _mapper     = mapper;
     }
 
     [HttpGet]
@@ -24,9 +28,14 @@ public class AdditionalServicesController : ControllerBase
         return Ok(additionalServices);
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int id)
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id)
     {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return BadRequest();
+        }
+
         var additionalService = await _repository.GetByIdAsync(id);
         if (additionalService == null)
         {
@@ -38,14 +47,15 @@ public class AdditionalServicesController : ControllerBase
 
     [HttpPost]
     [ValidateModel]
-    public async Task<IActionResult> Create(AdditionalService additionalService)
+    public async Task<IActionResult> Create(AdditionalServiceDTO additionalService)
     {
-        await _repository.CreateAsync(additionalService);
-        return CreatedAtAction(nameof(GetById), new { id = additionalService.Id }, additionalService);
+        var service = _mapper.Map<AdditionalService>(additionalService);
+        await _repository.CreateAsync(service);
+        return CreatedAtAction(nameof(GetById), new { id = service.Id }, service);
     }
 
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, AdditionalService additionalService)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(string id, AdditionalService additionalService)
     {
         var existingService = await _repository.GetByIdAsync(id);
         if (existingService == null)
@@ -58,8 +68,8 @@ public class AdditionalServicesController : ControllerBase
         return NoContent();
     }
 
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id)
     {
         var existingService = await _repository.GetByIdAsync(id);
         if (existingService == null)

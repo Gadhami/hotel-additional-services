@@ -1,8 +1,13 @@
 ﻿using System.Net;
 
+using HotelServices.Application.Common.Mappings;
+
+using AutoMapper;
+
 using FluentAssertions;
 
 using HotelServices.Domain.Entities;
+using HotelServices.Domain.Entities.DTO;
 using HotelServices.Domain.Interfaces;
 using HotelServices.WebAPI.Controllers;
 using HotelServices.WebAPI.IntegrationTests.Services;
@@ -15,17 +20,27 @@ public class BookingsControllerTests
 {
     private BookingsController _controller;
     private IRepository<AdditionalService> _repository;
+    private readonly IConfigurationProvider _configuration;
+    private readonly IMapper _mapper;
+
+    public BookingsControllerTests()
+    {
+        _configuration = new MapperConfiguration(config =>
+            config.AddProfile<MappingProfile>());
+
+        _mapper = _configuration.CreateMapper();
+    }
 
     [SetUp]
     public void Setup()
     {
         _repository = new InMemoryRepository<AdditionalService>();
-        _controller = new BookingsController(_repository);
+        _controller = new BookingsController(_repository, _mapper);
 
         // Seed the repository with test data
         var additionalService = new AdditionalService
         {
-            Id          = 1,
+            Id          = "1",
             Name        = "Test Service",
             Description = "Test Service Description",
             Price       = 9.99m,
@@ -33,13 +48,13 @@ public class BookingsControllerTests
             {
                 new Booking
                 {
-                    Id    = 1,
+                    Id    = "1",
                     Start = DateTime.UtcNow.AddDays(1),
                     End   = DateTime.UtcNow.AddDays(2)
                 },
                 new Booking
                 {
-                    Id    = 2,
+                    Id    = "2",
                     Start = DateTime.UtcNow.AddDays(2),
                     End   = DateTime.UtcNow.AddDays(3)
                 }            
@@ -55,10 +70,10 @@ public class BookingsControllerTests
     public async Task GetAll_ShouldReturnOkObjectResult()
     {
         // Arrange
-        var serviceId       = 1;
+        var serviceId       = "1";
         var expectedBooking = new Booking
         {
-            Id    = 1,
+            Id    = "1",
             Start = DateTime.UtcNow.AddDays(1),
             End   = DateTime.UtcNow.AddDays(2)
         };
@@ -81,24 +96,24 @@ public class BookingsControllerTests
     }
 
     [Test]
-    public async Task GetAll_WithIncorrectServiceId_ShouldReturnBadRequestObjectResult()
+    public async Task GetAll_WithIncorrectServiceId_ShouldReturnNotFoundObjectResult()
     {
         // Arrange
-        var serviceId = 0;
+        var serviceId = "0";
 
         // Act
         var result = await _controller.GetAll(serviceId);
 
         // Assert
-        result.Should().BeOfType<BadRequestObjectResult>();
+        result.Should().BeOfType<NotFoundObjectResult>();
     }
 
     [Test]
     public async Task GetById_ShouldReturnOkObjectResult()
     {
         // Arrange
-        var serviceId = 1;
-        var bookingId = 1;
+        var serviceId = "1";
+        var bookingId = "1";
 
         // Act
         var result = await _controller.GetById(serviceId, bookingId);
@@ -113,25 +128,25 @@ public class BookingsControllerTests
     }
 
     [Test]
-    public async Task GetById_WithIncorrectId_ShouldReturnBadRequestObjectResult()
+    public async Task GetById_WithIncorrectId_ShouldReturnNotFoundResult()
     {
         // Arrange
-        var serviceId = 1;
-        var bookingId = 0;
+        var serviceId = "1";
+        var bookingId = "0";
 
         // Act
         var result = await _controller.GetById(serviceId, bookingId);
 
         // Assert
-        result.Should().BeOfType<BadRequestObjectResult>();
+        result.Should().BeOfType<NotFoundResult>();
     }
 
     [Test]
     public async Task GetById_WithNonexistentService_ShouldReturnNotFoundResult()
     {
         // Arrange
-        var serviceId = 2;
-        var bookingId = 1;
+        var serviceId = "2";
+        var bookingId = "1";
 
         // Act
         var result = await _controller.GetById(serviceId, bookingId);
@@ -144,8 +159,8 @@ public class BookingsControllerTests
     public async Task GetById_WithNonexistentBooking_ShouldReturnNotFoundResult()
     {
         // Arrange
-        var serviceId = 1;
-        var bookingId = 3;
+        var serviceId = "1";
+        var bookingId = "3";
 
         // Act
         var result = await _controller.GetById(serviceId, bookingId);
@@ -158,14 +173,14 @@ public class BookingsControllerTests
     public async Task Create_ShouldReturnNotFound_WhenServiceNotFound()
     {
         // Arrange
-        var newBooking = new Booking
+        var newBooking = new BookingDTO
         {
             Start = DateTime.Now.AddDays(1),
             End   = DateTime.Now.AddDays(2)
         };
 
         // Act
-        var result = await _controller.Create(2, newBooking);
+        var result = await _controller.Create("2", newBooking);
 
         // Assert
         result.Should().BeOfType<NotFoundResult>();
@@ -175,8 +190,8 @@ public class BookingsControllerTests
     public async Task Create_ShouldReturnCreatedAtActionResult_WhenValidInput()
     {
         // Arrange
-        var serviceId  = 1;
-        var newBooking = new Booking
+        var serviceId  = "1";
+        var newBooking = new BookingDTO
         {
             Start = DateTime.Now.AddDays(1),
             End   = DateTime.Now.AddDays(2)
@@ -193,7 +208,7 @@ public class BookingsControllerTests
         createdAtActionResult.ActionName.Should().Be(nameof(BookingsController.GetById));
 
         createdBooking.Should().NotBeNull();
-        createdBooking!.Id.Should().NotBe(0);
+        createdBooking!.Id.Should().NotBe("0");
         createdBooking.Start.Should().Be(newBooking.Start);
         createdBooking.End.Should().Be(newBooking.End);
     }

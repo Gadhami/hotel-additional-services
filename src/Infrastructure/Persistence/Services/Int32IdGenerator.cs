@@ -2,7 +2,7 @@
 
 namespace HotelServices.Infrastructure.Persistence.Services;
 
-internal class Int32IdGenerator : IIdGenerator
+public class Int32IdGenerator : IIdGenerator
 {
     private int _counter = 1;
 
