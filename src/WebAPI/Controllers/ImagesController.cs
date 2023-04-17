@@ -42,20 +42,26 @@ public class ImagesController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(string id)
+    public async Task<IActionResult> GetById([FromRoute] string serviceId, [FromRoute] string imageId)
     {
-        if (string.IsNullOrWhiteSpace(id))
+        if (string.IsNullOrWhiteSpace(imageId) || string.IsNullOrWhiteSpace(serviceId))
         {
             return BadRequest("Incorrect ID");
         }
 
-        var Image = await _servicesRepository.GetByIdAsync(id);
-        if (Image == null)
+        var service = await _servicesRepository.GetByIdAsync(serviceId);
+        if (service == null)
         {
             return NotFound();
         }
 
-        return Ok(Image);
+        var image = service.Images.FirstOrDefault(img => img.Id == imageId);
+        if (image == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(image);
     }
 
     [HttpPost]
@@ -67,6 +73,92 @@ public class ImagesController : ControllerBase
             return NotFound();
         }
 
+        var result = await UploadImages();
+        if (result != null)
+        {
+            return result!;
+        }
+
+        var img = _mapper.Map<Image>(image);
+
+        additionalService.Images.Add(img);
+        await _servicesRepository.UpdateAsync(serviceId, additionalService);
+
+        return CreatedAtAction(nameof(GetById), new { serviceId = serviceId, id = img.Id }, img);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update([FromRoute] string serviceId, [FromRoute] string imageId, Image image)
+    {
+        if (string.IsNullOrWhiteSpace(serviceId))
+        {
+            return BadRequest("Incorrect Service ID");
+        }
+
+        if (string.IsNullOrWhiteSpace(imageId) || image.Id != imageId)
+        {
+            return BadRequest("Incorrect ID");
+        }
+
+        var existingService = await _servicesRepository.GetByIdAsync(serviceId);
+        if (existingService == null)
+        {
+            return NotFound();
+        }
+
+        var existingImage = existingService.Images.FirstOrDefault(b => b.Id == imageId);
+        if (existingImage == null)
+        {
+            return NotFound();
+        }
+
+        if (HttpContext.Request.Form?.Files?.Count > 0)
+        {
+            var result = await UploadImages();
+            if (result != null)
+            {
+                return result!;
+            }
+        }
+
+        existingImage.Name = image.Name;
+        existingImage.URL  = image.URL;
+
+        await _servicesRepository.UpdateAsync(existingService.Id, existingService);
+
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete([FromRoute] string serviceId, [FromRoute] string imageId)
+    {
+        if (string.IsNullOrWhiteSpace(serviceId) || string.IsNullOrWhiteSpace(imageId))
+        {
+            return BadRequest("Incorrect ID");
+        }
+
+        var existingService = await _servicesRepository.GetByIdAsync(serviceId);
+        if (existingService == null)
+        {
+            return NotFound();
+        }
+
+        var image = existingService.Images.FirstOrDefault(img => img.Id == imageId);
+        if (image == null)
+        {
+            return NotFound();
+        }
+
+        existingService.Images.Remove(image);
+        await _servicesRepository.UpdateAsync(existingService.Id, existingService);
+
+        // TODO: Delete Image File
+
+        return NoContent();
+    }
+
+    private async Task<IActionResult?> UploadImages()
+    {
         var files = HttpContext.Request.Form?.Files;
         if (files == null || files.Count == 0)
         {
@@ -87,18 +179,13 @@ public class ImagesController : ControllerBase
                 return BadRequest("File is not an image.");
             }
 
-            await UploadImage(file);
+            await UploadOneFile(file);
         }
 
-        var img = _mapper.Map<Image>(image);
-
-        additionalService.Images.Add(img);
-        await _servicesRepository.UpdateAsync(serviceId, additionalService);
-
-        return CreatedAtAction(nameof(GetById), new { serviceId = serviceId, id = img.Id }, img);
+        return null;
     }
 
-    private async Task<bool> UploadImage(IFormFile file)
+    private async Task<bool> UploadOneFile(IFormFile file)
     {
         // Create a unique filename
         string fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
@@ -116,53 +203,5 @@ public class ImagesController : ControllerBase
 
         // Return the file path
         return true;
-    }
-
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(string id, Image Image)
-    {
-        if (string.IsNullOrWhiteSpace(id))
-        {
-            return BadRequest("Incorrect ID");
-        }
-
-        var existingService = await _servicesRepository.GetByIdAsync(id);
-        if (existingService == null)
-        {
-            return NotFound();
-        }
-
-        var existingImage = existingService.Images.FirstOrDefault(b => b.Id == id);
-        if (existingImage == null)
-        {
-            return NotFound();
-        }
-
-        // TODO: Upload Image
-
-        await _servicesRepository.UpdateAsync(existingService.Id, existingService);
-
-        return NoContent();
-    }
-
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(string id)
-    {
-        if (string.IsNullOrWhiteSpace(id))
-        {
-            return BadRequest("Incorrect ID");
-        }
-
-        var existingService = await _servicesRepository.GetByIdAsync(id);
-        if (existingService == null)
-        {
-            return NotFound();
-        }
-
-        await _servicesRepository.DeleteAsync(id);
-
-        // TODO: Delete Image File
-
-        return NoContent();
     }
 }

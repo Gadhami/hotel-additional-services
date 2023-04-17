@@ -13,6 +13,7 @@ using HotelServices.WebAPI.Controllers;
 using HotelServices.WebAPI.IntegrationTests.Services;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 
 namespace HotelServices.WebAPI.IntegrationTests.Controllers;
 
@@ -36,7 +37,7 @@ public class BookingsControllerTests
     {
         _repository = new InMemoryRepository<AdditionalService>();
         _controller = new BookingsController(_repository, _mapper);
-
+            
         // Seed the repository with test data
         var additionalService = new AdditionalService
         {
@@ -175,8 +176,8 @@ public class BookingsControllerTests
         // Arrange
         var newBooking = new BookingDTO
         {
-            Start = DateTime.Now.AddDays(1),
-            End   = DateTime.Now.AddDays(2)
+            Start = DateTime.UtcNow.AddDays(1),
+            End   = DateTime.UtcNow.AddDays(2)
         };
 
         // Act
@@ -193,8 +194,8 @@ public class BookingsControllerTests
         var serviceId  = "1";
         var newBooking = new BookingDTO
         {
-            Start = DateTime.Now.AddDays(1),
-            End   = DateTime.Now.AddDays(2)
+            Start = DateTime.UtcNow.AddDays(1),
+            End   = DateTime.UtcNow.AddDays(2)
         };
 
         // Act
@@ -211,5 +212,42 @@ public class BookingsControllerTests
         createdBooking!.Id.Should().NotBe("0");
         createdBooking.Start.Should().Be(newBooking.Start);
         createdBooking.End.Should().Be(newBooking.End);
+    }
+
+    [Test]
+    public async Task Update_ExistingBooking_ShouldUpdateBooking()
+    {
+        // Arrange
+        var booking        = new Booking { Id = Guid.NewGuid().ToString(), Start = DateTime.UtcNow, End = DateTime.UtcNow.AddDays(1) };
+        var service        = new AdditionalService { Id = Guid.NewGuid().ToString(), Name = "Test Service", Bookings = new List<Booking> { booking } };
+        await _repository.CreateAsync(service);
+        var updatedBooking = new Booking { Id = booking.Id, Start = booking.Start, End = booking.End.AddDays(3) };
+
+        // Act
+        var result         = await _controller.Update(service.Id, booking.Id, updatedBooking) as NoContentResult;
+        var updatedService = await _repository.GetByIdAsync(service.Id);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        updatedService.Bookings.Should().ContainSingle(b => b.Id == booking.Id && b.Start == booking.Start && b.End == updatedBooking.End);
+    }
+
+    [Test]
+    public async Task Delete_ExistingBooking_ShouldDeleteBooking()
+    {
+        // Arrange
+        var booking        = new Booking { Id = Guid.NewGuid().ToString(), Start = DateTime.UtcNow, End = DateTime.UtcNow.AddDays(1) };
+        var service        = new AdditionalService { Id = Guid.NewGuid().ToString(), Name = "Test Service", Bookings = new List<Booking> { booking } };
+        await _repository.CreateAsync(service);
+
+        // Act
+        var result         = await _controller.Delete(service.Id, booking.Id) as NoContentResult;
+        var updatedService = await _repository.GetByIdAsync(service.Id);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.StatusCode.Should().Be(StatusCodes.Status204NoContent);
+        updatedService.Bookings.Should().BeEmpty();
     }
 }

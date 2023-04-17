@@ -43,9 +43,9 @@ public class BookingsController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(string serviceId, string id)
+    public async Task<IActionResult> GetById(string serviceId, string bookingId)
     {
-        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(serviceId))
+        if (string.IsNullOrWhiteSpace(bookingId) || string.IsNullOrWhiteSpace(serviceId))
         {
             return BadRequest("Incorrect ID");
         }
@@ -56,7 +56,7 @@ public class BookingsController : ControllerBase
             return NotFound();
         }
 
-        var booking = service.Bookings.FirstOrDefault(b => b.Id == id);
+        var booking = service.Bookings.FirstOrDefault(b => b.Id == bookingId);
         if (booking == null)
         {
             return NotFound();
@@ -80,9 +80,12 @@ public class BookingsController : ControllerBase
             return NotFound();
         }
 
-        // TODO: Make sure booking time *is* available!
-
         var dbBooking = _mapper.Map<Booking>(booking);
+
+        if (!CanBookService(additionalService, dbBooking))
+        {
+            return BadRequest("Service unavailable during this time");
+        }
 
         additionalService.Bookings.Add(dbBooking);
         await _servicesRepository.UpdateAsync(serviceId, additionalService);
@@ -94,29 +97,37 @@ public class BookingsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(string id, Booking booking)
+    public async Task<IActionResult> Update([FromRoute] string serviceId, [FromRoute] string bookingId, Booking booking)
     {
-        if (string.IsNullOrWhiteSpace(id) || booking.Id != id)
+        if (string.IsNullOrWhiteSpace(serviceId))
+        {
+            return BadRequest("Incorrect Service ID");
+        }
+
+        if (string.IsNullOrWhiteSpace(bookingId) || booking.Id != bookingId)
         {
             return BadRequest("Incorrect ID");
         }
 
-        var existingService = await _servicesRepository.GetByIdAsync(id);
+        var existingService = await _servicesRepository.GetByIdAsync(serviceId);
         if (existingService == null)
         {
             return NotFound();
         }
 
-        var existingBooking = existingService.Bookings.FirstOrDefault(b => b.Id == id);
+        var existingBooking = existingService.Bookings.FirstOrDefault(b => b.Id == bookingId);
         if (existingBooking == null)
         {
             return NotFound();
         }
 
-        // TODO: Make sure booking time *is* available!
+        if (!CanBookService(existingService, booking))
+        {
+            return BadRequest("Service unavailable during this time");
+        }
 
         existingBooking.Start = booking.Start;
-        existingBooking.End = booking.End;
+        existingBooking.End   = booking.End;
 
         await _servicesRepository.UpdateAsync(existingService.Id, existingService);
 
@@ -124,20 +135,20 @@ public class BookingsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(string id)
+    public async Task<IActionResult> Delete([FromRoute] string serviceId, [FromRoute] string bookingId)
     {
-        if (string.IsNullOrWhiteSpace(id))
+        if (string.IsNullOrWhiteSpace(serviceId) || string.IsNullOrWhiteSpace(bookingId))
         {
             return BadRequest("Incorrect ID");
         }
 
-        var existingService = await _servicesRepository.GetByIdAsync(id);
+        var existingService = await _servicesRepository.GetByIdAsync(serviceId);
         if (existingService == null)
         {
             return NotFound();
         }
 
-        var booking = existingService.Bookings.FirstOrDefault(b => b.Id == id);
+        var booking = existingService.Bookings.FirstOrDefault(b => b.Id == bookingId);
         if (booking == null)
         {
             return NotFound();
@@ -147,5 +158,11 @@ public class BookingsController : ControllerBase
         await _servicesRepository.UpdateAsync(existingService.Id, existingService);
 
         return NoContent();
+    }
+
+    bool CanBookService(AdditionalService additionalService, Booking booking)
+    {
+        // TODO: Make sure booking time *is* available!
+        return true;
     }
 }
