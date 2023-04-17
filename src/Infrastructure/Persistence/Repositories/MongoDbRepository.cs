@@ -56,6 +56,13 @@ public class MongoDbRepository<T> : IRepository<T>, IDisposable where T : class,
             entity.Id = ObjectId.GenerateNewId().ToString();
         }
 
+        AddMissingChildEntityIDs(entity);
+
+        await _collection.InsertOneAsync(entity);
+    }
+
+    private static void AddMissingChildEntityIDs(T entity)
+    {
         // check for child entities
         foreach (var property in typeof(T).GetProperties())
         {
@@ -64,7 +71,7 @@ public class MongoDbRepository<T> : IRepository<T>, IDisposable where T : class,
             // check if the property is a collection of child entities
             if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ICollection<>))
             {
-                var elementType   = type.GetGenericArguments()[0];
+                var elementType = type.GetGenericArguments()[0];
                 var childEntities = (IEnumerable)property.GetValue(entity);
 
                 foreach (var childEntity in childEntities)
@@ -83,8 +90,6 @@ public class MongoDbRepository<T> : IRepository<T>, IDisposable where T : class,
                 }
             }
         }
-
-        await _collection.InsertOneAsync(entity);
     }
 
     public async Task<bool> UpdateAsync(string id, T entity)
@@ -93,6 +98,8 @@ public class MongoDbRepository<T> : IRepository<T>, IDisposable where T : class,
         {
             entity.Id = ObjectId.GenerateNewId().ToString();
         }
+
+        AddMissingChildEntityIDs(entity);
 
         var filter = Builders<T>.Filter.Eq(x => x.Id, id);
         var result = await _collection.ReplaceOneAsync(filter, entity);

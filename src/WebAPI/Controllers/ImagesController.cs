@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace HotelServices.WebAPI.Controllers;
 
 [ApiController]
-[Route("services/{serviceId:int}/[controller]")]
+[Route("services/{serviceId}/[controller]")]
 public class ImagesController : ControllerBase
 {
     private readonly IRepository<AdditionalService> _servicesRepository;
@@ -41,7 +41,7 @@ public class ImagesController : ControllerBase
         return Ok(service.Images);
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("{imageId}")]
     public async Task<IActionResult> GetById([FromRoute] string serviceId, [FromRoute] string imageId)
     {
         if (string.IsNullOrWhiteSpace(imageId) || string.IsNullOrWhiteSpace(serviceId))
@@ -65,7 +65,7 @@ public class ImagesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromRoute] string serviceId, ImageDTO image)
+    public async Task<IActionResult> Create([FromRoute] string serviceId, [FromForm] ImageDTO image)
     {
         var additionalService = await _servicesRepository.GetByIdAsync(serviceId);
         if (additionalService == null)
@@ -73,7 +73,13 @@ public class ImagesController : ControllerBase
             return NotFound();
         }
 
-        var result = await UploadImages();
+        var files = HttpContext.Request.Form?.Files;
+        if (files?.Count == 0)
+        {
+            return BadRequest("Image file is missing");
+        }
+
+        var result = await UploadImages(files!.ToList());
         if (result != null)
         {
             return result!;
@@ -84,11 +90,11 @@ public class ImagesController : ControllerBase
         additionalService.Images.Add(img);
         await _servicesRepository.UpdateAsync(serviceId, additionalService);
 
-        return CreatedAtAction(nameof(GetById), new { serviceId = serviceId, id = img.Id }, img);
+        return CreatedAtAction(nameof(GetById), new { serviceId = serviceId, imageId = img.Id }, img);
     }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update([FromRoute] string serviceId, [FromRoute] string imageId, Image image)
+    [HttpPut("{imageId}")]
+    public async Task<IActionResult> Update([FromRoute] string serviceId, [FromRoute] string imageId, [FromForm] Image image)
     {
         if (string.IsNullOrWhiteSpace(serviceId))
         {
@@ -112,9 +118,10 @@ public class ImagesController : ControllerBase
             return NotFound();
         }
 
-        if (HttpContext.Request.Form?.Files?.Count > 0)
+        var files = HttpContext.Request.Form?.Files;
+        if (files?.Count > 0)
         {
-            var result = await UploadImages();
+            var result = await UploadImages(files!.ToList());
             if (result != null)
             {
                 return result!;
@@ -129,7 +136,7 @@ public class ImagesController : ControllerBase
         return NoContent();
     }
 
-    [HttpDelete("{id}")]
+    [HttpDelete("{imageId}")]
     public async Task<IActionResult> Delete([FromRoute] string serviceId, [FromRoute] string imageId)
     {
         if (string.IsNullOrWhiteSpace(serviceId) || string.IsNullOrWhiteSpace(imageId))
@@ -157,9 +164,8 @@ public class ImagesController : ControllerBase
         return NoContent();
     }
 
-    private async Task<IActionResult?> UploadImages()
+    private async Task<IActionResult?> UploadImages(List<IFormFile> files)
     {
-        var files = HttpContext.Request.Form?.Files;
         if (files == null || files.Count == 0)
         {
             return BadRequest("File not selected.");
@@ -179,7 +185,10 @@ public class ImagesController : ControllerBase
                 return BadRequest("File is not an image.");
             }
 
-            await UploadOneFile(file);
+            if (!await UploadOneFile(file))
+            {
+                return BadRequest("File upload failed.");
+            }
         }
 
         return null;
@@ -188,14 +197,14 @@ public class ImagesController : ControllerBase
     private async Task<bool> UploadOneFile(IFormFile file)
     {
         // Create a unique filename
-        string fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+        var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
 
         // Create a directory to save the file
-        string uploadPath = Path.Combine(_host.ContentRootPath, "uploads");
+        var uploadPath = Path.Combine(_host.ContentRootPath, "uploads");
         Directory.CreateDirectory(uploadPath);
 
         // Save the file to the directory
-        string filePath = Path.Combine(uploadPath, fileName);
+        var filePath = Path.Combine(uploadPath, fileName);
         using (var stream = new FileStream(filePath, FileMode.Create))
         {
             await file.CopyToAsync(stream);
